@@ -1,0 +1,18 @@
+# Copy this file to terraform.tfvars and fill in the values.
+# terraform.tfvars is gitignored — never commit it.
+# Alternatively, set TF_VAR_db_password in your shell to avoid writing it to disk.
+
+aws_region   = "us-east-1"
+project_name = "taskflow"
+
+# Use letters, digits, and hyphens only — some RDS versions reject other characters.
+db_password = "CHANGE_ME_strong_password_here"
+
+# Update these after each docker build + push to ECR.
+task_api_image_tag      = "latest"
+job_processor_image_tag = "latest"
+
+# Set to 0 to pause a service (stops Fargate billing immediately).
+# Set back to 1 and run terraform apply to resume.
+task_api_desired_count      = 1
+job_processor_desired_count = 1
