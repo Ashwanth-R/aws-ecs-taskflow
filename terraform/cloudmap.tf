@@ -7,25 +7,6 @@ resource "aws_service_discovery_private_dns_namespace" "main" {
   vpc         = aws_vpc.main.id
 }
 
-# Service registration for the Job Processor.
-# When ECS starts a processor task it registers an A record here.
-# When the task stops ECS removes the record automatically.
-# The Task API calls http://processor.taskflow.local:8001 and gets the
-# processor's current private IP without ever knowing what it is.
-resource "aws_service_discovery_service" "processor" {
-  name = "processor"
-
-  dns_config {
-    namespace_id   = aws_service_discovery_private_dns_namespace.main.id
-    routing_policy = "MULTIVALUE"
-
-    dns_records {
-      ttl  = 10   # Low TTL so the API picks up a replaced task quickly
-      type = "A"
-    }
-  }
-
-  health_check_custom_config {
-    failure_threshold = 1
-  }
-}
+# aws_service_discovery_service removed — Service Connect manages its own
+# service registrations automatically. The namespace above is still required;
+# Service Connect uses it to scope service names within the VPC.

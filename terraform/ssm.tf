@@ -13,12 +13,6 @@ resource "aws_ssm_parameter" "database_url" {
   value = "postgresql://taskflow:${var.db_password}@${aws_db_instance.postgres.address}:5432/taskflow"
 }
 
-resource "aws_ssm_parameter" "processor_base_url" {
-  name        = "/${local.name_prefix}/processor-base-url"
-  type        = "String"
-  description = "Cloud Map private DNS name for the Job Processor"
-
-  # This matches the Cloud Map namespace and service name defined in cloudmap.tf.
-  # The Task API reads this at startup and uses it for all processor calls.
-  value = "http://processor.${local.name_prefix}.local:8001"
-}
+# processor_base_url SSM parameter removed — Service Connect injects
+# the sidecar proxy, so "http://processor:8001" resolves inside the task
+# network automatically. No SSM parameter or DNS lookup needed.

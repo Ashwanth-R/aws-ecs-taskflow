@@ -48,15 +48,17 @@ resource "aws_ecs_task_definition" "task_api" {
     environment = [
       { name = "LOG_LEVEL",                 value = "INFO" },
       { name = "MAX_URLS_PER_JOB",          value = "10" },
-      { name = "PROCESSOR_TIMEOUT_SECONDS", value = "10" }
+      { name = "PROCESSOR_TIMEOUT_SECONDS", value = "10" },
+      # Service Connect injects a sidecar proxy that handles routing to "processor".
+      # The short name works because the proxy intercepts it inside the task network.
+      { name = "PROCESSOR_BASE_URL",        value = "http://processor:8001" }
     ]
 
     # ECS fetches these SSM parameters at task launch (using the execution role)
     # and injects them as environment variables. The container sees them as
     # ordinary env vars — no SSM SDK calls needed in application code.
     secrets = [
-      { name = "DATABASE_URL",       valueFrom = aws_ssm_parameter.database_url.arn },
-      { name = "PROCESSOR_BASE_URL", valueFrom = aws_ssm_parameter.processor_base_url.arn }
+      { name = "DATABASE_URL", valueFrom = aws_ssm_parameter.database_url.arn }
     ]
 
     logConfiguration = {
@@ -101,6 +103,14 @@ resource "aws_ecs_service" "task_api" {
     container_port   = 8000
   }
 
+  # Service Connect — client side only.
+  # Enables the sidecar proxy so this task can call "processor:8001".
+  # No service{} block here because Task API is not a discovered service itself.
+  service_connect_configuration {
+    enabled   = true
+    namespace = aws_service_discovery_private_dns_namespace.main.arn
+  }
+
   # Wait for the listener to exist before registering tasks — avoids a race
   # condition where ECS tries to register targets before the target group is ready.
   depends_on = [aws_lb_listener.http]
@@ -125,6 +135,7 @@ resource "aws_ecs_task_definition" "job_processor" {
     portMappings = [{
       containerPort = 8001
       protocol      = "tcp"
+      name          = "processor"   # Service Connect matches this name to the service{} block below
     }]
 
     environment = [
@@ -167,9 +178,22 @@ resource "aws_ecs_service" "job_processor" {
     assign_public_ip = false
   }
 
-  # Register this task's private IP with Cloud Map whenever a task starts.
-  # ECS removes the record automatically when the task stops.
-  service_registries {
-    registry_arn = aws_service_discovery_service.processor.arn
+  # Service Connect — server side.
+  # Advertises this service as "processor" in the namespace.
+  # The sidecar proxy on each task handles inbound routing and health tracking.
+  # client_alias defines what callers use: http://processor:8001
+  service_connect_configuration {
+    enabled   = true
+    namespace = aws_service_discovery_private_dns_namespace.main.arn
+
+    service {
+      port_name      = "processor"   # must match portMappings[].name above
+      discovery_name = "processor"
+
+      client_alias {
+        port     = 8001
+        dns_name = "processor"
+      }
+    }
   }
 }

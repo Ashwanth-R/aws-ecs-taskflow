@@ -19,13 +19,13 @@ output "ecs_cluster_name" {
 }
 
 output "cloudmap_namespace" {
-  description = "Private DNS namespace — ECS resolves processor.taskflow.local inside the VPC"
+  description = "Private DNS namespace used by Service Connect"
   value       = aws_service_discovery_private_dns_namespace.main.name
 }
 
-output "processor_private_dns" {
-  description = "DNS name the Task API uses to reach the Job Processor"
-  value       = "processor.${aws_service_discovery_private_dns_namespace.main.name}:8001"
+output "processor_service_connect_name" {
+  description = "Name the Task API uses to reach the processor via Service Connect sidecar"
+  value       = "processor:8001"
 }
 
 output "rds_endpoint" {
