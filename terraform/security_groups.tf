@@ -108,7 +108,7 @@ resource "aws_security_group_rule" "processor_ingress_task_api" {
   to_port                  = 8001
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.task_api.id
-  description              = "From Task API only — processor is not reachable from internet"
+  description              = "From Task API only - processor has no public access"
 }
 
 resource "aws_security_group_rule" "processor_egress_https" {
@@ -140,5 +140,5 @@ resource "aws_security_group_rule" "rds_ingress_task_api" {
   to_port                  = 5432
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.task_api.id
-  description              = "From Task API only — processor has no database access"
+  description              = "From Task API only - processor has no database access"
 }
