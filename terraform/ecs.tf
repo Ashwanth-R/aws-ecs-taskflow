@@ -111,8 +111,12 @@ resource "aws_ecs_service" "task_api" {
     namespace = aws_service_discovery_private_dns_namespace.main.arn
   }
 
-  # Wait for the listener to exist before registering tasks — avoids a race
-  # condition where ECS tries to register targets before the target group is ready.
+  # Autoscaling manages desired_count at runtime — ignore it in Terraform
+  # so that terraform apply doesn't reset the count back to 1 mid-scaling.
+  lifecycle {
+    ignore_changes = [desired_count]
+  }
+
   depends_on = [aws_lb_listener.http]
 }
 
@@ -187,7 +191,7 @@ resource "aws_ecs_service" "job_processor" {
     namespace = aws_service_discovery_private_dns_namespace.main.arn
 
     service {
-      port_name      = "processor"   # must match portMappings[].name above
+      port_name      = "processor"
       discovery_name = "processor"
 
       client_alias {
@@ -195,5 +199,9 @@ resource "aws_ecs_service" "job_processor" {
         dns_name = "processor"
       }
     }
+  }
+
+  lifecycle {
+    ignore_changes = [desired_count]
   }
 }
