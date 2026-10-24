@@ -8,33 +8,32 @@
 
 ```mermaid
 flowchart TD
-    Internet(["🌐 Internet\nClient / browser"])
-
-    IGW["Internet Gateway\nRoutes public IP ↔ private VPC IP"]
+    Internet(["Internet"])
+    IGW["Internet Gateway"]
 
     subgraph VPC["VPC — 10.0.0.0/16"]
-        subgraph Public["🔵 Public Subnets  (10.0.0.0/24 · 10.0.1.0/24)"]
-            ALB["Application Load Balancer\nPorts 80 / 443 · public IP\nspans 2 Availability Zones"]
-            NAT["NAT Gateway\nOutbound-only · elastic IP\n⚠ ~$32/month"]
+        subgraph Public["Public Subnets — 10.0.0.0/24 and 10.0.1.0/24"]
+            ALB["Application Load Balancer\nPorts 80 and 443 — public IP\nspans 2 Availability Zones"]
+            NAT["NAT Gateway\nOutbound-only — elastic IP\n~$32 per month"]
         end
 
-        subgraph Private["🟢 Private Subnets  (10.0.10.0/24 · 10.0.11.0/24)"]
-            API["Task API\nECS Fargate · port 8000\nprivate IP only"]
-            PROC["Job Processor\nECS Fargate · port 8001\nno internet exposure"]
-            RDS[("PostgreSQL\nport 5432\nprivate only")]
+        subgraph Private["Private Subnets — 10.0.10.0/24 and 10.0.11.0/24"]
+            API["Task API\nECS Fargate — port 8000\nprivate IP only"]
+            PROC["Job Processor\nECS Fargate — port 8001\nno internet exposure"]
+            RDS[("PostgreSQL\nport 5432")]
         end
     end
 
-    Internet  -->|HTTPS / HTTP|         IGW
-    IGW       -->|inbound|              ALB
-    ALB       -->|:8000  alb-sg → task-api-sg|   API
-    API       -->|:8001  task-api-sg → processor-sg| PROC
-    API       -->|:5432  task-api-sg → rds-sg|    RDS
+    Internet -->|HTTPS| IGW
+    IGW -->|inbound| ALB
+    ALB -->|port 8000| API
+    API -->|port 8001| PROC
+    API -->|port 5432| RDS
 
-    API       -. "ECR pulls · SSM · CloudWatch Logs" .-> NAT
-    PROC      -. "ECR pulls · URL checks" .->         NAT
-    NAT       -. outbound .->                          IGW
-    IGW       -. outbound .->                          Internet
+    API -.->|ECR, SSM, CloudWatch| NAT
+    PROC -.->|ECR, URL checks| NAT
+    NAT -.->|outbound| IGW
+    IGW -.->|outbound| Internet
 ```
 
 > **Tip — view in VS Code:** install the [Markdown Preview Mermaid Support](https://marketplace.visualstudio.com/items?itemName=bierner.markdown-mermaid) extension, then open this file and press `Cmd+Shift+V`.
