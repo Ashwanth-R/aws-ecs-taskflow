@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: taskflow
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: taskflow
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskflow -d taskflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - taskflow_pg:/var/lib/postgresql/data
+    networks:
+      - taskflow
+
+  task-api:
+    build:
+      context: ./services/task-api
+    ports:
+      - "8000:8000"
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      PROCESSOR_BASE_URL: http://job-processor:8001
+      PROCESSOR_TIMEOUT_SECONDS: ${PROCESSOR_TIMEOUT_SECONDS:-10}
+      MAX_URLS_PER_JOB: ${MAX_URLS_PER_JOB:-10}
+      DATABASE_URL: postgresql://taskflow:changeme@postgres:5432/taskflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+      job-processor:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - taskflow
+
+  job-processor:
+    build:
+      context: ./services/job-processor
+    # Published on localhost for local debugging only. On ECS this service stays private.
+    ports:
+      - "8001:8001"
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MAX_URLS_PER_JOB: ${MAX_URLS_PER_JOB:-10}
+      URL_TIMEOUT_SECONDS: ${URL_TIMEOUT_SECONDS:-3}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health')",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - taskflow
+
+networks:
+  taskflow:
+    driver: bridge
+
+volumes:
+  taskflow_pg:
