@@ -1,0 +1,52 @@
+{
+  "family": "taskflow-task-api",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/taskflow-execution-role",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/taskflow-task-api-task-role",
+  "containerDefinitions": [
+    {
+      "name": "task-api",
+      "image": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/taskflow-task-api:latest",
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "LOG_LEVEL",                  "value": "INFO" },
+        { "name": "MAX_URLS_PER_JOB",           "value": "10" },
+        { "name": "PROCESSOR_TIMEOUT_SECONDS",  "value": "10" }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:ssm:us-east-1:ACCOUNT_ID:parameter/taskflow/database-url"
+        },
+        {
+          "name": "PROCESSOR_BASE_URL",
+          "valueFrom": "arn:aws:ssm:us-east-1:ACCOUNT_ID:parameter/taskflow/processor-base-url"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/taskflow-task-api",
+          "awslogs-region":        "us-east-1",
+          "awslogs-stream-prefix": "task-api"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\" || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 15
+      },
+      "essential": true
+    }
+  ]
+}

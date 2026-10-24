@@ -1,0 +1,41 @@
+{
+  "family": "taskflow-job-processor",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/taskflow-execution-role",
+  "containerDefinitions": [
+    {
+      "name": "job-processor",
+      "image": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/taskflow-job-processor:latest",
+      "portMappings": [
+        {
+          "containerPort": 8001,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "LOG_LEVEL",          "value": "INFO" },
+        { "name": "MAX_URLS_PER_JOB",   "value": "10" },
+        { "name": "URL_TIMEOUT_SECONDS","value": "3" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/taskflow-job-processor",
+          "awslogs-region":        "us-east-1",
+          "awslogs-stream-prefix": "job-processor"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health')\" || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 15
+      },
+      "essential": true
+    }
+  ]
+}
